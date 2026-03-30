@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tarefas</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;1,9..144,300&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:           #0f1117;
+    --surface:      #181c27;
+    --surface2:     #1e2333;
+    --ink:          #e8e6e1;
+    --ink-muted:    #7a8099;
+    --ink-faint:    #3d4258;
+    --accent:       #4ade80;
+    --accent-dim:   #1a3a28;
+    --accent-text:  #4ade80;
+    --andamento:    #60a5fa;
+    --andamento-bg: #0d1f38;
+    --atrasada:     #f87171;
+    --atrasada-bg:  #2a0f0f;
+    --concluida:    #4ade80;
+    --concluida-bg: #0d2318;
+    --recur:        #c084fc;
+    --recur-bg:     #1f1030;
+    --border:       #252a3a;
+    --border2:      #2e3448;
+    --radius:       6px;
+  }
+
+  body { font-family: 'DM Mono', monospace; background: var(--bg); color: var(--ink); min-height: 100vh; }
+  .shell { display: grid; grid-template-columns: 230px 1fr 248px; min-height: 100vh; }
+
+  /* ── Sidebar ── */
+  .sidebar { background: var(--surface); border-right: 1px solid var(--border); padding: 36px 20px; display: flex; flex-direction: column; gap: 28px; }
+  .logo { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 500; letter-spacing: -0.5px; color: var(--ink); }
+  .logo span { color: var(--accent); }
+  .sidebar-section-label { font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-muted); margin-bottom: 8px; }
+  .filter-list { list-style: none; display: flex; flex-direction: column; gap: 2px; }
+  .filter-item { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: var(--radius); cursor: pointer; font-size: 11px; color: var(--ink-muted); transition: background .15s, color .15s; user-select: none; }
+  .filter-item:hover { background: var(--surface2); color: var(--ink); }
+  .filter-item.active { background: var(--accent-dim); color: var(--accent-text); }
+  .filter-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .filter-count { margin-left: auto; font-size: 10px; color: var(--ink-faint); }
+  .tag-input-row { display: flex; gap: 6px; margin-top: 8px; }
+  .tag-input-row input { flex: 1; font-family: 'DM Mono', monospace; font-size: 11px; background: var(--bg); border: 1px solid var(--border2); border-radius: var(--radius); padding: 5px 8px; color: var(--ink); outline: none; }
+  .tag-input-row input:focus { border-color: var(--accent); }
+  .tag-input-row button { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-dim); border-radius: var(--radius); padding: 5px 10px; font-size: 14px; cursor: pointer; transition: background .15s; }
+  .tag-input-row button:hover { background: var(--accent); color: #000; }
+
+  /* Export/Import */
+  .data-section { margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
+  .data-btn { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 12px; border-radius: var(--radius); font-family: 'DM Mono', monospace; font-size: 11px; cursor: pointer; border: 1px solid var(--border2); background: var(--surface2); color: var(--ink-muted); transition: all .15s; }
+  .data-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+  .import-feedback { font-size: 10px; color: var(--accent); display: none; padding: 0 4px; }
+  .import-feedback.show { display: block; }
+
+  /* ── Main ── */
+  .main { padding: 40px 44px; overflow: auto; }
+  .page-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 28px; }
+  .page-title { font-family: 'Fraunces', serif; font-size: 28px; font-weight: 300; letter-spacing: -1px; color: var(--ink); }
+  .task-count-badge { font-size: 11px; color: var(--ink-muted); }
+
+  /* ── Add form ── */
+  .add-form { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px; }
+  .add-form-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .add-form input[type="text"] { flex: 1; min-width: 160px; font-family: 'DM Mono', monospace; font-size: 13px; background: transparent; border: none; border-bottom: 1px solid var(--border2); padding: 5px 0; color: var(--ink); outline: none; transition: border-color .2s; }
+  .add-form input[type="text"]:focus { border-color: var(--accent); }
+  .add-form input[type="text"]::placeholder { color: var(--ink-faint); }
+  .add-form select, .add-form input[type="date"] { font-family: 'DM Mono', monospace; font-size: 11px; background: var(--bg); border: 1px solid var(--border2); border-radius: var(--radius); padding: 6px 8px; color: var(--ink); outline: none; cursor: pointer; }
+  .add-form select option { background: var(--surface); }
+  .add-form select:focus, .add-form input[type="date"]:focus { border-color: var(--accent); }
+  .add-btn { background: var(--accent); color: #000; border: none; border-radius: var(--radius); padding: 7px 18px; font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 400; cursor: pointer; transition: opacity .15s; white-space: nowrap; flex-shrink: 0; }
+  .add-btn:hover { opacity: .85; }
+  .recur-row { display: flex; align-items: center; gap: 10px; }
+  .recur-toggle { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; font-size: 11px; color: var(--ink-muted); }
+  .recur-toggle input[type="checkbox"] { accent-color: var(--recur); width: 14px; height: 14px; cursor: pointer; }
+  .recur-toggle.active { color: var(--recur); }
+  .recur-hint { font-size: 10px; color: var(--recur); background: var(--recur-bg); padding: 3px 8px; border-radius: 20px; display: none; }
+  .recur-hint.show { display: inline; }
+
+  /* ── Month dropdown filter ── */
+  .month-filter-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .month-filter-label { font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-muted); flex-shrink: 0; }
+  .month-select-wrap { position: relative; flex: 1; max-width: 240px; }
+  .month-select-btn {
+    display: flex; align-items: center; justify-content: space-between;
+    width: 100%; padding: 6px 12px; border-radius: var(--radius);
+    border: 1px solid var(--border2); background: var(--surface);
+    color: var(--ink-muted); font-family: 'DM Mono', monospace; font-size: 11px;
+    cursor: pointer; transition: border-color .15s, color .15s; user-select: none;
+  }
+  .month-select-btn:hover, .month-select-btn.open { border-color: var(--accent); color: var(--ink); }
+  .month-select-btn.has-value { color: var(--accent); border-color: var(--accent); }
+  .month-select-btn .arrow { font-size: 9px; transition: transform .2s; }
+  .month-select-btn.open .arrow { transform: rotate(180deg); }
+  .month-dropdown {
+    position: absolute; top: calc(100% + 4px); left: 0; min-width: 100%;
+    background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: var(--radius); z-index: 50;
+    box-shadow: 0 8px 24px rgba(0,0,0,.4);
+    max-height: 220px; overflow-y: auto;
+    display: none;
+  }
+  .month-dropdown.open { display: block; animation: dropIn .15s ease; }
+  @keyframes dropIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+  .month-option {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 14px; font-size: 11px; cursor: pointer;
+    color: var(--ink-muted); transition: background .1s, color .1s;
+  }
+  .month-option:hover { background: var(--surface); color: var(--ink); }
+  .month-option.active { color: var(--accent); background: var(--accent-dim); }
+  .month-option .mo-count { font-size: 10px; color: var(--ink-faint); }
+  .month-option.active .mo-count { color: var(--accent); opacity: .7; }
+  .month-clear-btn { background: none; border: none; cursor: pointer; color: var(--ink-faint); font-size: 16px; padding: 2px 4px; transition: color .12s; flex-shrink: 0; }
+  .month-clear-btn:hover { color: var(--atrasada); }
+
+  /* ── Task list ── */
+  .tasks-empty { text-align: center; padding: 50px 0; color: var(--ink-faint); font-size: 12px; }
+  .tasks-empty .empty-icon { font-size: 28px; margin-bottom: 10px; display: block; }
+  .task-group { margin-bottom: 28px; }
+  .task-group-label { font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-muted); margin-bottom: 8px; padding-left: 4px; }
+  .task-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; display: flex; align-items: flex-start; gap: 12px; margin-bottom: 5px; transition: box-shadow .15s, opacity .2s; animation: slideIn .2s ease; }
+  .task-card:hover { box-shadow: 0 2px 16px rgba(0,0,0,.3); border-color: var(--border2); }
+  .task-card.is-done { opacity: .4; }
+  .task-card.is-done .task-title { text-decoration: line-through; color: var(--ink-muted); }
+  .task-card.is-atrasada { border-left: 3px solid var(--atrasada); }
+  .task-card.is-recur { border-left: 3px solid var(--recur); }
+  .task-card.is-atrasada.is-recur { border-left: 3px solid var(--atrasada); }
+  @keyframes slideIn { from { opacity:0; transform:translateY(-5px); } to { opacity:1; transform:translateY(0); } }
+
+  .task-checkbox { width: 18px; height: 18px; border: 1.5px solid var(--border2); border-radius: 50%; flex-shrink: 0; margin-top: 1px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .15s, border-color .15s; }
+  .task-checkbox:hover { border-color: var(--accent); }
+  .task-card.is-done .task-checkbox { background: var(--concluida); border-color: var(--concluida); }
+  .task-checkbox svg { display: none; }
+  .task-card.is-done .task-checkbox svg { display: block; }
+
+  .task-body { flex: 1; min-width: 0; }
+  .task-title { font-size: 12px; color: var(--ink); word-break: break-word; }
+  .task-meta { display: flex; align-items: center; gap: 6px; margin-top: 5px; flex-wrap: wrap; }
+
+  /* Status pills */
+  .status-pill { font-size: 9px; letter-spacing: .8px; text-transform: uppercase; padding: 2px 7px; border-radius: 20px; }
+  .status-pill.andamento { background: var(--andamento-bg); color: var(--andamento); }
+  .status-pill.atrasada  { background: var(--atrasada-bg);  color: var(--atrasada); }
+  .status-pill.concluida { background: var(--concluida-bg); color: var(--concluida); }
+
+  .tag-pill   { font-size: 9px; padding: 2px 6px; border-radius: 20px; background: var(--accent-dim); color: var(--accent-text); }
+  .recur-pill { font-size: 9px; padding: 2px 6px; border-radius: 20px; background: var(--recur-bg); color: var(--recur); }
+  .date-pill  { font-size: 10px; color: var(--ink-muted); }
+  .date-pill.overdue { color: var(--atrasada); }
+
+  .task-actions { display: flex; gap: 4px; flex-shrink: 0; margin-top: 1px; }
+  .task-btn { background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px 3px; line-height: 1; color: var(--ink-faint); transition: color .15s; }
+  .task-btn.edit-btn:hover { color: var(--accent); }
+  .task-btn.del-btn:hover  { color: var(--atrasada); }
+
+  /* ── Modal ── */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 100; animation: fadeIn .15s ease; }
+  .modal-overlay.hidden { display: none; }
+  @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+  .modal { background: var(--surface); border: 1px solid var(--border2); border-radius: 12px; padding: 28px 32px; width: 440px; box-shadow: 0 24px 64px rgba(0,0,0,.6); animation: scaleIn .15s ease; }
+  @keyframes scaleIn { from { transform:scale(.96); opacity:0; } to { transform:scale(1); opacity:1; } }
+  .modal-title { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 300; margin-bottom: 20px; color: var(--ink); }
+  .modal-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+  .modal-label { font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-muted); }
+  .modal-input { font-family: 'DM Mono', monospace; font-size: 12px; background: var(--bg); border: 1px solid var(--border2); border-radius: var(--radius); padding: 8px 10px; color: var(--ink); outline: none; transition: border-color .2s; width: 100%; }
+  .modal-input:focus { border-color: var(--accent); }
+  .modal-input option { background: var(--surface); }
+  .modal-recur-info { font-size: 10px; color: var(--recur); background: var(--recur-bg); border-radius: var(--radius); padding: 8px 10px; margin-top: -4px; margin-bottom: 14px; display: none; }
+  .modal-recur-info.show { display: block; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+  .modal-cancel { background: none; border: 1px solid var(--border2); border-radius: var(--radius); padding: 7px 16px; font-family: 'DM Mono', monospace; font-size: 11px; cursor: pointer; color: var(--ink-muted); transition: background .15s; }
+  .modal-cancel:hover { background: var(--surface2); }
+  .modal-save { background: var(--accent); color: #000; border: none; border-radius: var(--radius); padding: 7px 20px; font-family: 'DM Mono', monospace; font-size: 11px; cursor: pointer; transition: opacity .15s; }
+  .modal-save:hover { opacity: .85; }
+
+  /* ── Calendar ── */
+  .cal-panel { background: var(--surface); border-left: 1px solid var(--border); padding: 36px 20px; display: flex; flex-direction: column; gap: 20px; }
+  .cal-header { display: flex; align-items: center; justify-content: space-between; }
+  .cal-month-label { font-family: 'Fraunces', serif; font-size: 14px; font-weight: 300; letter-spacing: -.3px; color: var(--ink); }
+  .cal-nav { background: none; border: none; cursor: pointer; color: var(--ink-muted); font-size: 18px; padding: 2px 6px; border-radius: var(--radius); transition: background .15s; line-height: 1; }
+  .cal-nav:hover { background: var(--surface2); color: var(--ink); }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
+  .cal-dow { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--ink-faint); padding: 4px 0; }
+  .cal-day { font-size: 11px; padding: 5px 2px; border-radius: 50%; cursor: pointer; color: var(--ink-muted); transition: background .12s, color .12s; position: relative; line-height: 1.2; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; }
+  .cal-day:hover { background: var(--surface2); color: var(--ink); }
+  .cal-day.other-month { color: var(--ink-faint); }
+  .cal-day.today { color: var(--accent); font-weight: 500; }
+  .cal-day.has-tasks::after { content: ''; position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; border-radius: 50%; background: var(--accent); }
+  .cal-day.selected { background: var(--accent) !important; color: #000 !important; }
+  .cal-day.selected::after { background: rgba(0,0,0,.4); }
+  .cal-clear-btn { font-family: 'DM Mono', monospace; font-size: 10px; background: none; border: 1px solid var(--border2); border-radius: var(--radius); padding: 5px 10px; color: var(--ink-muted); cursor: pointer; transition: all .15s; align-self: flex-start; }
+  .cal-clear-btn:hover { border-color: var(--atrasada); color: var(--atrasada); }
+
+  /* Dot colors for sidebar */
+  .p-andamento { background: var(--andamento); }
+  .p-atrasada  { background: var(--atrasada); }
+  .p-concluida { background: var(--concluida); }
+  .p-all       { background: var(--ink-muted); }
+  .p-recur     { background: var(--recur); }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar">
+    <div class="logo">tarefas<span>.</span></div>
+
+    <div>
+      <div class="sidebar-section-label">Visualizar</div>
+      <ul class="filter-list" id="filterList">
+        <li class="filter-item active" data-filter="all">
+          <span class="filter-dot p-all"></span> Todas
+          <span class="filter-count" id="cnt-all"></span>
+        </li>
+        <li class="filter-item" data-filter="andamento">
+          <span class="filter-dot p-andamento"></span> Em andamento
+          <span class="filter-count" id="cnt-andamento"></span>
+        </li>
+        <li class="filter-item" data-filter="atrasada">
+          <span class="filter-dot p-atrasada"></span> Atrasadas
+          <span class="filter-count" id="cnt-atrasada"></span>
+        </li>
+        <li class="filter-item" data-filter="recur">
+          <span class="filter-dot p-recur"></span> Recorrentes
+          <span class="filter-count" id="cnt-recur"></span>
+        </li>
+        <li class="filter-item" data-filter="done">
+          <span class="filter-dot p-concluida"></span> Concluídas
+          <span class="filter-count" id="cnt-done"></span>
+        </li>
+      </ul>
+    </div>
+
+    <div>
+      <div class="sidebar-section-label">Categorias</div>
+      <ul class="filter-list" id="categoryList"></ul>
+      <div class="tag-input-row">
+        <input type="text" id="newCatInput" placeholder="Nova categoria…" maxlength="20">
+        <button onclick="addCategory()">+</button>
+      </div>
+    </div>
+
+    <div class="data-section">
+      <div class="sidebar-section-label">Dados</div>
+      <button class="data-btn" onclick="exportData()">⬇ Exportar tarefas</button>
+      <button class="data-btn" onclick="document.getElementById('importInput').click()">⬆ Importar tarefas</button>
+      <input type="file" id="importInput" accept=".json" style="display:none" onchange="importData(event)">
+      <span class="import-feedback" id="importFeedback"></span>
+    </div>
+  </aside>
+
+  <!-- ── Main ── -->
+  <main class="main">
+    <div class="page-header">
+      <h1 class="page-title" id="pageTitle">Todas as tarefas</h1>
+      <span class="task-count-badge" id="taskCountBadge"></span>
+    </div>
+
+    <!-- Add form -->
+    <div class="add-form">
+      <div class="add-form-row">
+        <input type="text" id="taskInput" placeholder="Adicionar nova tarefa…" maxlength="120">
+        <button class="add-btn" onclick="addTask()">+ Adicionar</button>
+      </div>
+      <div class="add-form-row">
+        <input type="date" id="dueDateInput">
+        <select id="categorySelect"><option value="">— categoria —</option></select>
+      </div>
+      <div class="add-form-row recur-row">
+        <label class="recur-toggle" id="recurToggleLabel">
+          <input type="checkbox" id="recurCheck" onchange="onRecurChange()">
+          🔁 Repetir todo mês até o fim do ano
+        </label>
+        <span class="recur-hint" id="recurHint"></span>
+      </div>
+    </div>
+
+    <!-- Month dropdown filter -->
+    <div class="month-filter-bar">
+      <span class="month-filter-label">Mês</span>
+      <div class="month-select-wrap" id="monthSelectWrap">
+        <div class="month-select-btn" id="monthSelectBtn" onclick="toggleMonthDropdown()">
+          <span id="monthSelectLabel">Todos os meses</span>
+          <span class="arrow">▾</span>
+        </div>
+        <div class="month-dropdown" id="monthDropdown"></div>
+      </div>
+      <button class="month-clear-btn" id="monthClearBtn" style="display:none" title="Limpar filtro" onclick="clearMonthFilter()">✕</button>
+    </div>
+
+    <div id="taskList"></div>
+  </main>
+
+  <!-- ── Calendar ── -->
+  <aside class="cal-panel">
+    <div class="sidebar-section-label">Calendário</div>
+    <div class="cal-header">
+      <button class="cal-nav" id="calPrev">‹</button>
+      <span class="cal-month-label" id="calMonthLabel"></span>
+      <button class="cal-nav" id="calNext">›</button>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+    <button class="cal-clear-btn" id="calClearBtn" style="display:none" onclick="clearCalFilter()">✕ Limpar filtro de dia</button>
+  </aside>
+</div>
+
+<!-- ── Edit modal ── -->
+<div class="modal-overlay hidden" id="editModal">
+  <div class="modal">
+    <div class="modal-title">Editar tarefa</div>
+    <div class="modal-field">
+      <label class="modal-label">Título</label>
+      <input class="modal-input" id="editTitle" type="text" maxlength="120">
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Data de vencimento</label>
+      <input class="modal-input" id="editDue" type="date">
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Categoria</label>
+      <select class="modal-input" id="editCategory"></select>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">Recorrência</label>
+      <select class="modal-input" id="editRecur">
+        <option value="none">Sem recorrência</option>
+        <option value="monthly">🔁 Mensal até fim do ano</option>
+      </select>
+    </div>
+    <div class="modal-recur-info" id="editRecurInfo"></div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="modal-save" onclick="saveEdit()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──
+let tasks             = JSON.parse(localStorage.getItem('tasks_v5') || '[]');
+let categories        = JSON.parse(localStorage.getItem('cats_v5') || '["Trabalho","Pessoal","Estudos"]');
+let activeFilter      = 'all';
+let selectedDate      = null;
+let selectedMonthYear = null;
+let editingId         = null;
+let monthDropOpen     = false;
+
+const today    = new Date();
+let calYear    = today.getFullYear();
+let calMonth   = today.getMonth();
+
+function save() {
+  localStorage.setItem('tasks_v5', JSON.stringify(tasks));
+  localStorage.setItem('cats_v5', JSON.stringify(categories));
+}
+
+// ── Status helper ──
+function getStatus(t) {
+  if (t.done) return 'concluida';
+  if (t.due && new Date(t.due + 'T23:59:59') < new Date()) return 'atrasada';
+  return 'andamento';
+}
+
+// ── Recurrence ──
+function pad(n){ return String(n).padStart(2,'0'); }
+function toYMD(y,m,d){ return `${y}-${pad(m+1)}-${pad(d)}`; }
+
+function generateRecurringDates(startYMD) {
+  if (!startYMD) return [];
+  const [y, m, d] = startYMD.split('-').map(Number);
+  const endYear = today.getFullYear();
+  const dates = [];
+  for (let month = m - 1; month <= 11; month++) {
+    const year = y + Math.floor(month / 12);
+    const realMonth = month % 12;
+    if (year > endYear) break;
+    const lastDay = new Date(year, realMonth + 1, 0).getDate();
+    const day = Math.min(d, lastDay);
+    const ymd = toYMD(year, realMonth, day);
+    if (ymd !== startYMD) dates.push(ymd);
+  }
+  return dates;
+}
+
+function onRecurChange() {
+  const checked = document.getElementById('recurCheck').checked;
+  const hint    = document.getElementById('recurHint');
+  const label   = document.getElementById('recurToggleLabel');
+  const due     = document.getElementById('dueDateInput').value;
+  label.classList.toggle('active', checked);
+  if (checked && due) {
+    const dates = generateRecurringDates(due);
+    hint.textContent = `+${dates.length} ocorrências até dez/${due.slice(0,4)}`;
+    hint.classList.add('show');
+  } else {
+    hint.classList.remove('show');
+  }
+}
+document.getElementById('dueDateInput').addEventListener('change', onRecurChange);
+
+// ── Categories ──
+function addCategory() {
+  const v = document.getElementById('newCatInput').value.trim();
+  if (!v || categories.includes(v)) return;
+  categories.push(v); save(); renderAll();
+  document.getElementById('newCatInput').value = '';
+}
+document.getElementById('newCatInput').addEventListener('keydown', e => { if(e.key==='Enter') addCategory(); });
+
+function renderCategorySelects() {
+  ['categorySelect','editCategory'].forEach(id => {
+    const sel = document.getElementById(id);
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— nenhuma —</option>' +
+      categories.map(c=>`<option value="${c}">${c}</option>`).join('');
+    if ([...sel.options].some(o=>o.value===cur)) sel.value = cur;
+  });
+}
+
+function renderSidebarCategories() {
+  const list = document.getElementById('categoryList');
+  list.innerHTML = categories.map(c => {
+    const cnt = tasks.filter(t=>t.category===c&&!t.done).length;
+    return `<li class="filter-item ${activeFilter==='cat:'+c?'active':''}" data-filter="cat:${c}">
+      <span class="filter-dot" style="background:var(--recur)"></span> ${c}
+      <span class="filter-count">${cnt||''}</span>
+    </li>`;
+  }).join('');
+  list.querySelectorAll('.filter-item').forEach(el=>
+    el.addEventListener('click',()=>setFilter(el.dataset.filter)));
+}
+
+// ── Sidebar filter ──
+function setFilter(f) {
+  activeFilter = f;
+  document.querySelectorAll('#filterList .filter-item').forEach(el=>
+    el.classList.toggle('active', el.dataset.filter===f));
+  renderSidebarCategories(); renderTasks(); updateTitle();
+}
+
+function updateTitle() {
+  const map = { all:'Todas as tarefas', andamento:'Em andamento', atrasada:'Atrasadas', done:'Concluídas', recur:'Recorrentes' };
+  const base = activeFilter.startsWith('cat:') ? activeFilter.slice(4) : (map[activeFilter]||activeFilter);
+  const dateSuffix  = selectedDate ? ` · ${formatDate(selectedDate)}` : '';
+  const monthSuffix = (!selectedDate && selectedMonthYear) ? ` · ${monthYearLabel(selectedMonthYear)}` : '';
+  document.getElementById('pageTitle').textContent = base + dateSuffix + monthSuffix;
+}
+
+// ── Add task ──
+function addTask() {
+  const title = document.getElementById('taskInput').value.trim();
+  if (!title) return;
+  const due      = document.getElementById('dueDateInput').value;
+  const category = document.getElementById('categorySelect').value;
+  const isRecur  = document.getElementById('recurCheck').checked;
+
+  const base = { id: Date.now(), title, due, category, done: false, created: Date.now(), recurGroupId: null, isRecurring: false };
+
+  if (isRecur && due) {
+    const groupId = 'rg_' + Date.now();
+    base.recurGroupId = groupId; base.isRecurring = true;
+    tasks.unshift(base);
+    generateRecurringDates(due).forEach((d,i) => {
+      tasks.push({ id: Date.now()+i+1, title, category, due:d, done:false, created:Date.now(), recurGroupId:groupId, isRecurring:true });
+    });
+  } else {
+    tasks.unshift(base);
+  }
+
+  document.getElementById('taskInput').value = '';
+  document.getElementById('recurCheck').checked = false;
+  onRecurChange();
+  save(); renderAll();
+}
+document.getElementById('taskInput').addEventListener('keydown', e=>{ if(e.key==='Enter') addTask(); });
+
+// ── Toggle / Delete ──
+function toggleTask(id) {
+  const t = tasks.find(t=>t.id===id);
+  if (t) { t.done=!t.done; save(); renderAll(); }
+}
+
+function deleteTask(id) {
+  const t = tasks.find(t=>t.id===id);
+  if (!t) return;
+  if (t.isRecurring && t.recurGroupId) {
+    const siblings = tasks.filter(x=>x.recurGroupId===t.recurGroupId&&x.id!==id);
+    if (siblings.length > 0) {
+      const all = confirm(`Esta é uma tarefa recorrente com ${siblings.length} outra(s) ocorrência(s).\n\nOK = Remover TODAS\nCancelar = Remover só esta`);
+      tasks = all ? tasks.filter(x=>x.recurGroupId!==t.recurGroupId) : tasks.filter(x=>x.id!==id);
+    } else {
+      if (!confirm('Remover esta tarefa?')) return;
+      tasks = tasks.filter(x=>x.id!==id);
+    }
+  } else {
+    if (!confirm('Remover esta tarefa?')) return;
+    tasks = tasks.filter(x=>x.id!==id);
+  }
+  save(); renderAll();
+}
+
+// ── Edit modal ──
+function openEdit(id) {
+  const t = tasks.find(t=>t.id===id);
+  if (!t) return;
+  editingId = id;
+  renderCategorySelects();
+  document.getElementById('editTitle').value    = t.title;
+  document.getElementById('editDue').value      = t.due||'';
+  document.getElementById('editCategory').value = t.category||'';
+  document.getElementById('editRecur').value    = t.isRecurring ? 'monthly' : 'none';
+  updateEditRecurInfo(t);
+  document.getElementById('editModal').classList.remove('hidden');
+  setTimeout(()=>document.getElementById('editTitle').focus(), 50);
+}
+
+function updateEditRecurInfo(t) {
+  const info = document.getElementById('editRecurInfo');
+  if (t && t.isRecurring && t.recurGroupId) {
+    const n = tasks.filter(x=>x.recurGroupId===t.recurGroupId).length;
+    info.textContent = `Série com ${n} ocorrências. Editar altera só esta.`;
+    info.classList.add('show');
+  } else { info.classList.remove('show'); }
+}
+
+document.getElementById('editRecur').addEventListener('change', ()=>{
+  updateEditRecurInfo(tasks.find(t=>t.id===editingId));
+});
+
+function closeModal() {
+  document.getElementById('editModal').classList.add('hidden'); editingId=null;
+}
+function saveEdit() {
+  const t = tasks.find(t=>t.id===editingId);
+  if (!t) return closeModal();
+  const newTitle = document.getElementById('editTitle').value.trim();
+  if (newTitle) t.title = newTitle;
+  t.due      = document.getElementById('editDue').value;
+  t.category = document.getElementById('editCategory').value;
+  const recurVal = document.getElementById('editRecur').value;
+  if (recurVal==='monthly' && !t.isRecurring && t.due) {
+    const groupId='rg_'+Date.now();
+    t.recurGroupId=groupId; t.isRecurring=true;
+    generateRecurringDates(t.due).forEach((d,i)=>{
+      tasks.push({id:Date.now()+i+1,title:t.title,category:t.category,due:d,done:false,created:Date.now(),recurGroupId:groupId,isRecurring:true});
+    });
+  } else if (recurVal==='none' && t.isRecurring) {
+    t.isRecurring=false; t.recurGroupId=null;
+  }
+  save(); renderAll(); closeModal();
+}
+document.getElementById('editModal').addEventListener('click', e=>{ if(e.target===document.getElementById('editModal')) closeModal(); });
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape') { closeModal(); closeMonthDropdown(); }
+  if(e.key==='Enter' && !document.getElementById('editModal').classList.contains('hidden')) saveEdit();
+});
+
+// ── Month dropdown ──
+const MONTH_NAMES_SHORT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+function monthYearLabel(ym) {
+  if (!ym) return '';
+  const [y,m] = ym.split('-');
+  return `${MONTH_NAMES_SHORT[+m-1]}/${y}`;
+}
+
+function getAvailableMonths() {
+  const set = new Set(tasks.filter(t=>t.due).map(t=>t.due.slice(0,7)));
+  return [...set].sort();
+}
+
+function toggleMonthDropdown() {
+  monthDropOpen ? closeMonthDropdown() : openMonthDropdown();
+}
+function openMonthDropdown() {
+  monthDropOpen = true;
+  document.getElementById('monthSelectBtn').classList.add('open');
+  renderMonthDropdown();
+  document.getElementById('monthDropdown').classList.add('open');
+}
+function closeMonthDropdown() {
+  monthDropOpen = false;
+  document.getElementById('monthSelectBtn').classList.remove('open');
+  document.getElementById('monthDropdown').classList.remove('open');
+}
+
+function renderMonthDropdown() {
+  const months  = getAvailableMonths();
+  const dropdown = document.getElementById('monthDropdown');
+  if (!months.length) {
+    dropdown.innerHTML = '<div class="month-option" style="color:var(--ink-faint);cursor:default">Nenhuma tarefa com data</div>';
+    return;
+  }
+  dropdown.innerHTML = months.map(ym => {
+    const cnt = tasks.filter(t=>t.due&&t.due.startsWith(ym)&&!t.done).length;
+    return `<div class="month-option ${selectedMonthYear===ym?'active':''}" data-ym="${ym}">
+      <span>${monthYearLabel(ym)}</span>
+      <span class="mo-count">${cnt||''}</span>
+    </div>`;
+  }).join('');
+  dropdown.querySelectorAll('.month-option').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const ym = el.dataset.ym;
+      if (!ym) return;
+      if (selectedMonthYear===ym) { clearMonthFilter(); }
+      else {
+        selectedMonthYear = ym;
+        if (selectedDate && !selectedDate.startsWith(ym)) {
+          selectedDate = null;
+          document.getElementById('calClearBtn').style.display='none';
+        }
+        document.getElementById('monthClearBtn').style.display='';
+        document.getElementById('monthSelectLabel').textContent = monthYearLabel(ym);
+        document.getElementById('monthSelectBtn').classList.add('has-value');
+        closeMonthDropdown(); renderTasks(); updateTitle(); renderCalendar();
+      }
+    });
+  });
+}
+
+function renderMonthFilter() {
+  const btn   = document.getElementById('monthSelectBtn');
+  const label = document.getElementById('monthSelectLabel');
+  const clear = document.getElementById('monthClearBtn');
+  if (selectedMonthYear) {
+    label.textContent = monthYearLabel(selectedMonthYear);
+    btn.classList.add('has-value');
+    clear.style.display = '';
+  } else {
+    label.textContent = 'Todos os meses';
+    btn.classList.remove('has-value');
+    clear.style.display = 'none';
+  }
+}
+
+function clearMonthFilter() {
+  selectedMonthYear = null;
+  closeMonthDropdown();
+  renderMonthFilter(); renderTasks(); updateTitle(); renderCalendar();
+}
+
+// Close dropdown on outside click
+document.addEventListener('click', e=>{
+  if (monthDropOpen && !document.getElementById('monthSelectWrap').contains(e.target)) closeMonthDropdown();
+});
+
+// ── Filtered tasks ──
+function filteredTasks() {
+  let base;
+  if (activeFilter==='all')       base = tasks.filter(t=>!t.done);
+  else if (activeFilter==='done') base = tasks.filter(t=>t.done);
+  else if (activeFilter==='recur') base = tasks.filter(t=>t.isRecurring&&!t.done);
+  else if (activeFilter==='andamento') base = tasks.filter(t=>getStatus(t)==='andamento');
+  else if (activeFilter==='atrasada')  base = tasks.filter(t=>getStatus(t)==='atrasada');
+  else if (activeFilter.startsWith('cat:')) base = tasks.filter(t=>!t.done&&t.category===activeFilter.slice(4));
+  else base = tasks;
+
+  if (selectedDate) base = base.filter(t=>t.due===selectedDate);
+  else if (selectedMonthYear) base = base.filter(t=>t.due&&t.due.startsWith(selectedMonthYear));
+
+  return base.sort((a,b)=>{
+    if (a.due&&b.due) return a.due.localeCompare(b.due);
+    if (a.due) return -1; if (b.due) return 1;
+    return b.created-a.created;
+  });
+}
+
+function isOverdue(t) { return getStatus(t)==='atrasada'; }
+function formatDate(due) {
+  if (!due) return '';
+  const [y,m,d] = due.split('-'); return `${d}/${m}/${y}`;
+}
+
+function renderTasks() {
+  const list = document.getElementById('taskList');
+  const data = filteredTasks();
+  document.getElementById('taskCountBadge').textContent = data.length
+    ? `${data.length} tarefa${data.length>1?'s':''}` : '';
+
+  if (!data.length) {
+    const msg = selectedDate ? 'Nenhuma tarefa nesse dia.'
+              : selectedMonthYear ? `Nenhuma tarefa em ${monthYearLabel(selectedMonthYear)}.`
+              : 'Nenhuma tarefa aqui.';
+    list.innerHTML = `<div class="tasks-empty"><span class="empty-icon">✦</span>${msg}</div>`;
+    return;
+  }
+
+  // Group by status when showing "all" without a date filter
+  if (activeFilter==='all' && !selectedDate && !selectedMonthYear) {
+    const groups = [
+      { key:'atrasada',  label:'Atrasadas',    items: data.filter(t=>getStatus(t)==='atrasada') },
+      { key:'andamento', label:'Em andamento',  items: data.filter(t=>getStatus(t)==='andamento') },
+      { key:'concluida', label:'Concluídas',    items: data.filter(t=>getStatus(t)==='concluida') },
+    ].filter(g=>g.items.length);
+    list.innerHTML = groups.map(g=>
+      `<div class="task-group"><div class="task-group-label">${g.label}</div>${g.items.map(taskHTML).join('')}</div>`
+    ).join('');
+  } else {
+    list.innerHTML = data.map(taskHTML).join('');
+  }
+
+  list.querySelectorAll('.task-checkbox').forEach(el=>el.addEventListener('click',()=>toggleTask(+el.dataset.id)));
+  list.querySelectorAll('.edit-btn').forEach(el=>el.addEventListener('click',()=>openEdit(+el.dataset.id)));
+  list.querySelectorAll('.del-btn').forEach(el=>el.addEventListener('click',()=>deleteTask(+el.dataset.id)));
+}
+
+function taskHTML(t) {
+  const status = getStatus(t);
+  return `<div class="task-card ${t.done?'is-done':''} ${status==='atrasada'?'is-atrasada':''} ${t.isRecurring?'is-recur':''}">
+    <div class="task-checkbox" data-id="${t.id}">
+      <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+        <path d="M1 4l3 3 5-6" stroke="#000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="task-body">
+      <div class="task-title">${escHtml(t.title)}</div>
+      <div class="task-meta">
+        <span class="status-pill ${status}">${status==='andamento'?'em andamento':status}</span>
+        ${t.isRecurring ? '<span class="recur-pill">🔁 recorrente</span>' : ''}
+        ${t.category ? `<span class="tag-pill">${escHtml(t.category)}</span>` : ''}
+        ${t.due ? `<span class="date-pill ${status==='atrasada'&&!t.done?'overdue':''}">📅 ${formatDate(t.due)}${status==='atrasada'&&!t.done?' · atrasada':''}</span>` : ''}
+      </div>
+    </div>
+    <div class="task-actions">
+      <button class="task-btn edit-btn" data-id="${t.id}" title="Editar">✎</button>
+      <button class="task-btn del-btn"  data-id="${t.id}" title="Remover">×</button>
+    </div>
+  </div>`;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function updateCounts() {
+  document.getElementById('cnt-all').textContent       = tasks.filter(t=>!t.done).length||'';
+  document.getElementById('cnt-andamento').textContent = tasks.filter(t=>getStatus(t)==='andamento').length||'';
+  document.getElementById('cnt-atrasada').textContent  = tasks.filter(t=>getStatus(t)==='atrasada').length||'';
+  document.getElementById('cnt-recur').textContent     = tasks.filter(t=>t.isRecurring&&!t.done).length||'';
+  document.getElementById('cnt-done').textContent      = tasks.filter(t=>t.done).length||'';
+}
+
+// ── Calendar ──
+const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const DOW    = ['D','S','T','Q','Q','S','S'];
+
+function renderCalendar() {
+  document.getElementById('calMonthLabel').textContent = `${MONTHS[calMonth]} ${calYear}`;
+  const firstDay    = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  const daysInPrev  = new Date(calYear, calMonth, 0).getDate();
+  const todayYMD    = toYMD(today.getFullYear(), today.getMonth(), today.getDate());
+  const taskDates   = new Set(tasks.filter(t=>t.due).map(t=>t.due));
+
+  let html = DOW.map(d=>`<div class="cal-dow">${d}</div>`).join('');
+  for (let i=firstDay-1;i>=0;i--) html+=calDayHTML(daysInPrev-i, toYMD(calYear,calMonth-1,daysInPrev-i),'other-month',taskDates,todayYMD);
+  for (let d=1;d<=daysInMonth;d++) html+=calDayHTML(d, toYMD(calYear,calMonth,d),'',taskDates,todayYMD);
+  const rem=(firstDay+daysInMonth)%7===0?0:7-((firstDay+daysInMonth)%7);
+  for (let d=1;d<=rem;d++) html+=calDayHTML(d, toYMD(calYear,calMonth+1,d),'other-month',taskDates,todayYMD);
+
+  document.getElementById('calGrid').innerHTML = html;
+  document.querySelectorAll('.cal-day').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const ymd=el.dataset.date;
+      if (selectedDate===ymd){clearCalFilter();return;}
+      selectedDate=ymd;
+      selectedMonthYear=null;
+      document.getElementById('calClearBtn').style.display='';
+      renderMonthFilter(); renderCalendar(); renderTasks(); updateTitle();
+    });
+  });
+}
+
+function calDayHTML(d,ymd,extra,taskDates,todayYMD){
+  const cls=['cal-day',extra,
+    taskDates.has(ymd)?'has-tasks':'',
+    ymd===todayYMD?'today':'',
+    ymd===selectedDate?'selected':''
+  ].filter(Boolean).join(' ');
+  return `<div class="${cls}" data-date="${ymd}">${d}</div>`;
+}
+
+function clearCalFilter(){
+  selectedDate=null;
+  document.getElementById('calClearBtn').style.display='none';
+  renderCalendar(); renderMonthFilter(); renderTasks(); updateTitle();
+}
+
+document.getElementById('calPrev').addEventListener('click',()=>{calMonth--;if(calMonth<0){calMonth=11;calYear--;}renderCalendar();});
+document.getElementById('calNext').addEventListener('click',()=>{calMonth++;if(calMonth>11){calMonth=0;calYear++;}renderCalendar();});
+
+// ── Export / Import ──
+function exportData(){
+  const data={tasks,categories,exportedAt:new Date().toISOString(),version:5};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=`tarefas_${new Date().toISOString().slice(0,10)}.json`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+function importData(event){
+  const file=event.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      if(!Array.isArray(data.tasks)) throw new Error();
+      const ids=new Set(tasks.map(t=>t.id));
+      const added=data.tasks.filter(t=>!ids.has(t.id));
+      tasks=[...tasks,...added];
+      if(Array.isArray(data.categories)) data.categories.forEach(c=>{if(!categories.includes(c))categories.push(c);});
+      save(); renderAll();
+      const fb=document.getElementById('importFeedback');
+      fb.textContent=`✓ ${added.length} tarefa${added.length!==1?'s':''} importada${added.length!==1?'s':''}`;
+      fb.classList.add('show');
+      setTimeout(()=>fb.classList.remove('show'),3500);
+    } catch{alert('Arquivo inválido.');}
+    event.target.value='';
+  };
+  reader.readAsText(file);
+}
+
+// ── Init ──
+function renderAll(){
+  renderCategorySelects(); renderSidebarCategories();
+  updateCounts(); renderMonthFilter(); renderTasks(); renderCalendar();
+}
+document.getElementById('filterList').querySelectorAll('.filter-item').forEach(el=>
+  el.addEventListener('click',()=>setFilter(el.dataset.filter)));
+document.getElementById('dueDateInput').valueAsDate=new Date();
+renderAll();
+</script>
+</body>
+</html>
